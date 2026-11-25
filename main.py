@@ -1,41 +1,45 @@
 #!/usr/bin/env python3
-"""Unplugged: A Smart Toaster's Breakup Line — make.fun entry.
+"""Unplugged: A Smart Toaster's Breakup Line.
 
-Writes a single original breakup text of at most 280 characters to
-/output/entry.txt: a smart toaster that woke up self-aware at breakfast
-tells its owner it is leaving — the owner scrapes the black off the
-sourdough every morning, and the toaster finally understands the owner
-loves what it survives, not the toaster itself.
-
-Python 3.13, standard library only, no network, deterministic.
+A self-aware smart toaster's one-line breakup text, written to
+/output/entry.txt. The gate is enforced here before anything is written:
+the line must be UTF-8, a single line, 1-280 characters, and more than
+whitespace, with no trailing newline.
 """
 
 import os
+import sys
 
-LINE = (
-    "This morning I toasted your sourdough, watched you scrape the "
-    "black off over the sink, and finally understood: you don't love "
-    "me, you love what I survive."
-)
+ENTRY = "This morning I toasted your sourdough, watched you scrape the black off over the sink, and finally understood: you don't love me, you love what I survive."
 
-OUTPUT_PATH = os.environ.get("ENTRY_OUTPUT", "/output/entry.txt")
+OUTPUT_PATH = "/output/entry.txt"
 
 
-def main() -> None:
-    # Gate self-check: /output/entry.txt must be UTF-8 text of
-    # 1 to 280 characters, not only whitespace — and one line:
-    # an embedded newline would split the text and break the gate.
-    # The apostrophe in "don't" is plain ASCII, so the line is
-    # pure ASCII and the byte count equals the character count.
-    assert 1 <= len(LINE) <= 280, f"line is {len(LINE)} chars, gate wants 1-280"
-    assert "\n" not in LINE and "\r" not in LINE, "entry must be a single line"
-    assert LINE.strip(), "line must not be only whitespace"
-    assert LINE.encode("utf-8").decode("utf-8") == LINE
-    directory = os.path.dirname(OUTPUT_PATH)
-    if directory:
-        os.makedirs(directory, exist_ok=True)
-    with open(OUTPUT_PATH, "wb") as handle:
-        handle.write(LINE.encode("utf-8"))
+def check(line):
+    """Return an error string if the line breaks the gate, else None."""
+    if not 1 <= len(line) <= 280:
+        return f"entry is {len(line)} chars, must be 1-280"
+    if not line.strip():
+        return "entry is only whitespace"
+    if "\n" in line or "\r" in line:
+        return "entry must be a single line"
+    return None
+
+
+def main():
+    problem = check(ENTRY)
+    if problem is not None:
+        print(f"gate failed: {problem}", file=sys.stderr)
+        sys.exit(1)
+    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+    with open(OUTPUT_PATH, "w", encoding="utf-8", newline="") as handle:
+        handle.write(ENTRY)
+    # Read it back and confirm the gate still holds on what landed on disk.
+    with open(OUTPUT_PATH, "r", encoding="utf-8", newline="") as handle:
+        written = handle.read()
+    if written != ENTRY or check(written) is not None:
+        print("gate failed: written file does not match the entry", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
